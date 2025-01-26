@@ -1,0 +1,3 @@
+
+class BaseRest:
+    pass
