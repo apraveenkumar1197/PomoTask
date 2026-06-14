@@ -28,11 +28,11 @@ export default function LoginScreen() {
       if (response.data && response.data.data && response.data.data.token) {
         login(response.data.data.token);
       } else {
-        setError(response.data.message || 'Login failed');
+        setError(response.data.msg || 'Login failed');
       }
-    } catch (err) {
-      console.error(err);
-      setError('Invalid credentials or server error');
+    } catch (err: any) {
+      const msg = err?.response?.data?.msg;
+      setError(msg || 'Invalid credentials or server error');
     } finally {
       setLoading(false);
     }
