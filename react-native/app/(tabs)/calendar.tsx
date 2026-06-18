@@ -5,7 +5,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Clock } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
     ActivityIndicator,
     IconButton,
@@ -34,6 +34,7 @@ export default function CalendarScreen() {
     const [slotDate, setSlotDate] = useState<Date | null>(null);
     const [slotFromTime, setSlotFromTime] = useState<Date | null>(null);
     const [slotToTime, setSlotToTime] = useState<Date | null>(null);
+    const [creationMode, setCreationMode] = useState<'task' | 'activity'>('task');
 
     const isShiftHeld = useRef(false);
     useEffect(() => {
@@ -171,13 +172,13 @@ export default function CalendarScreen() {
         setSlotDate(info.start);
         setSlotFromTime(info.start);
         setSlotToTime(info.end);
-        if (isShiftHeld.current) {
+        if (isShiftHeld.current || creationMode === 'activity') {
             setActivityModalVisible(true);
         } else {
             setAddModalVisible(true);
         }
         calendarRef.current?.getApi().unselect();
-    }, []);
+    }, [creationMode]);
 
     if (Platform.OS !== 'web') {
         return (
@@ -233,15 +234,29 @@ export default function CalendarScreen() {
                 />
 
                 <View style={styles.legend}>
-                    <View style={styles.legendItem}>
+                    <TouchableOpacity
+                        style={[
+                            styles.legendItem,
+                            creationMode === 'task' && [styles.legendItemActive, { borderColor: BRAND.primary }],
+                        ]}
+                        onPress={() => setCreationMode('task')}
+                    >
                         <View style={[styles.legendDot, { backgroundColor: BRAND.primary }]} />
                         <Text style={styles.legendLabel}>Task</Text>
-                    </View>
-                    <View style={styles.legendItem}>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[
+                            styles.legendItem,
+                            creationMode === 'activity' && [styles.legendItemActive, { borderColor: ACTIVITY_COLOR }],
+                        ]}
+                        onPress={() => setCreationMode('activity')}
+                    >
                         <View style={[styles.legendDot, { backgroundColor: ACTIVITY_COLOR }]} />
                         <Text style={styles.legendLabel}>Activity</Text>
-                    </View>
-                    <Text style={styles.legendHint}>Drag → task · Shift+drag → activity</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.legendHint}>
+                        Drag to create a {creationMode}{Platform.OS === 'web' ? ' · Shift+drag for activity' : ''}
+                    </Text>
                 </View>
             </View>
 
@@ -416,7 +431,8 @@ const styles = StyleSheet.create({
         marginRight: -8,
     },
     segmentedButtons: {
-        flex: 0,
+        flexGrow: 0,
+        flexShrink: 0,
         borderRadius: 10,
     },
     legend: {
@@ -430,6 +446,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 5,
+        borderWidth: 1.5,
+        borderColor: 'transparent',
+        borderRadius: 14,
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+    },
+    legendItemActive: {
+        backgroundColor: '#F4F4FB',
     },
     legendDot: {
         width: 9,
