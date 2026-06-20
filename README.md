@@ -21,9 +21,6 @@ A full-stack productivity app combining **Pomodoro time tracking**, **task manag
 ### Goals
 ![Goals Screen](screenshots/goals.png)
 
-### Analytics Dashboard
-![Dashboard Screen](screenshots/dashboard.png)
-
 ---
 
 ## Features
