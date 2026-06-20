@@ -172,3 +172,63 @@ Place your screenshots in the `screenshots/` folder using these filenames:
 | `screenshots/calendar.png` | Calendar view |
 | `screenshots/goals.png` | Goals screen |
 | `screenshots/dashboard.png` | Analytics dashboard |
+
+---
+
+## CI/CD Deployment (Jenkins)
+
+The repo root contains a single [`Jenkinsfile`](Jenkinsfile) that replaces the old
+`django/docker.bat` + manual `react-native` build workflow. One pipeline run builds
+both Docker images and (re)starts both containers:
+
+| Service | Image / Container | Host Port | Container Port |
+|---|---|---|---|
+| Django backend | `pomotask-django` | **4310** | 8000 |
+| React Native (Expo web, served via Nginx) | `pomotask-react-native` | **4392** | 80 |
+
+### Prerequisites on the Jenkins agent
+- Docker installed, with the Jenkins service/user allowed to run `docker` commands
+  (e.g. added to the `docker` group on Linux)
+- Network access to pull the base images (`python:3.10-slim`, `node:20-alpine`,
+  `nginx:stable-alpine`) and to reach this Git repository
+
+### Credentials to configure in Jenkins
+
+Both Dockerfiles `COPY` the entire build context, so each app's `.env` file must
+exist on disk **before** `docker build` runs (it gets baked into the image — for
+the frontend, the `EXPO_PUBLIC_*` vars are inlined into the static web bundle at
+build time). Create these under **Manage Jenkins → Credentials**:
+
+| Credential ID | Type | Contents |
+|---|---|---|
+| `pomotask-django-env` | Secret file | Full contents of `django/.env` — see `django/.env.example` for the keys: `ALLOWED_HOSTS`, `SECRET_KEY`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `AUTH_USERNAME`, `AUTH_PASSWORD`, `JWT_SECRET`, `JWT_EXPIRY_MINUTES`, `MONGO_CONTAINER_ID`, `MONGO_ADMIN_USER`, `MONGO_ADMIN_PASSWORD`, `BACKUP_EMAIL`, `GMAIL_APP_PASSWORD` |
+| `pomotask-react-native-env` | Secret file | Full contents of `react-native/.env` — see `react-native/.env.example` for the keys: `EXPO_PUBLIC_API_BASE_URL_MS1`, `EXPO_PUBLIC_API_BASE_URL_MS2` |
+
+If the Jenkins job pulls this repository over SSH/HTTPS with restricted access, also
+add a **Username with password** or **SSH key** credential and select it in the job's
+*Pipeline → SCM* configuration (this is separate from the two secret files above and
+isn't referenced inside the `Jenkinsfile` itself).
+
+### Setting up the pipeline job
+1. In Jenkins, create a new **Pipeline** job (or a **Multibranch Pipeline** if you
+   want every branch built automatically).
+2. Under **Pipeline**, set *Definition* to **Pipeline script from SCM**, choose **Git**,
+   point it at this repository, and set the script path to `Jenkinsfile`.
+3. Add the two **Secret file** credentials listed above (`pomotask-django-env`,
+   `pomotask-react-native-env`) before the first run.
+4. Run the job. On success it will:
+   - write `django/.env` and `react-native/.env` from the secret file credentials
+   - `docker build` the `pomotask-django` and `pomotask-react-native` images
+   - remove any previous containers with the same names and start fresh ones,
+     publishing the backend on port **4310** and the frontend on port **4392**
+   - prune dangling images left over from the previous build
+5. (Optional) Add a webhook or polling trigger on the job to redeploy automatically
+   on every push to `master`.
+
+### Notes
+- The pipeline assumes a Linux Jenkins agent (`sh` steps). If your agent is Windows,
+  replace the `sh` blocks in `Jenkinsfile` with `bat` equivalents.
+- MongoDB itself is not managed by this pipeline — `DB_HOST` / `MONGO_*` values in
+  `django/.env` should point at your existing Mongo instance/container.
+- `docker run --restart unless-stopped` is used so both containers survive an agent
+  reboot without needing the pipeline to run again.
