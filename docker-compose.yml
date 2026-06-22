@@ -1,0 +1,58 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: pomotask_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-pomotask}
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - pomotask_net
+
+  django:
+    build:
+      context: ./django
+      dockerfile: Dockerfile
+    container_name: pomotask_django
+    restart: unless-stopped
+    env_file:
+      - ./django/.env
+    environment:
+      # Force the app to talk to the "mongo" service over the compose
+      # network, regardless of DB_HOST in django/.env
+      DB_HOST: mongo
+    depends_on:
+      - mongo
+    ports:
+      - "4310:8000"
+    networks:
+      - pomotask_net
+
+  react-native:
+    build:
+      context: ./react-native
+      dockerfile: Dockerfile
+    container_name: pomotask_react_native
+    restart: unless-stopped
+    env_file:
+      - ./react-native/.env
+    depends_on:
+      - django
+    ports:
+      - "4392:80"
+    networks:
+      - pomotask_net
+
+volumes:
+  mongo_data:
+    name: pomotask_mongo_data
+
+networks:
+  pomotask_net:
+    name: pomotask_net
+    driver: bridge
