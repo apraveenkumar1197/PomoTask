@@ -136,14 +136,6 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-Or with Docker:
-
-```bash
-cd django
-docker.bat        # Windows helper script
-# or: docker build -t pomotask-api . && docker run -p 8000:8000 pomotask-api
-```
-
 ### Frontend
 
 ```bash
@@ -154,6 +146,31 @@ npm run web       # Run in browser
 npm run android   # Run on Android
 npm run ios       # Run on iOS (macOS only)
 ```
+
+### Everything with Docker Compose
+
+A single [`docker-compose.yml`](docker-compose.yml) at the repo root builds and runs
+MongoDB, the Django backend, and the React Native web frontend together:
+
+```bash
+cp .env.example .env                          # Mongo root credentials
+cp django/.env.example django/.env            # fill in real values
+cp react-native/.env.example react-native/.env
+
+docker compose up -d --build
+```
+
+| Service | Container | Host Port |
+|---|---|---|
+| MongoDB | `pomotask_mongo` | internal only (not published) |
+| Django backend | `pomotask_django` | **4310** |
+| React Native web | `pomotask_react_native` | **4392** |
+
+Mongo data is persisted in the named volume `pomotask_mongo_data` (mapped to
+`/data/db`), so it survives `docker compose down` / container recreation — only
+`docker compose down -v` removes it. The `django` service's `DB_HOST` is pinned to
+`mongo` in `docker-compose.yml` so it always reaches the database over the compose
+network, regardless of what `DB_HOST` is set to in `django/.env`.
 
 ---
 
@@ -175,35 +192,34 @@ Place your screenshots in the `screenshots/` folder using these filenames:
 ## CI/CD Deployment (Jenkins)
 
 The repo root contains a single [`Jenkinsfile`](Jenkinsfile) that replaces the old
-`django/docker.bat` + manual `react-native` build workflow. One pipeline run builds
-both Docker images and (re)starts both containers:
-
-| Service | Image / Container | Host Port | Container Port |
-|---|---|---|---|
-| Django backend | `pomotask-django` | **4310** | 8000 |
-| React Native (Expo web, served via Nginx) | `pomotask-react-native` | **4392** | 80 |
+`django/docker.bat` + manual `react-native` build workflow. One pipeline run drives
+[`docker-compose.yml`](docker-compose.yml) to build both app images and (re)start all
+three containers — MongoDB, Django, and the React Native web frontend.
 
 ### Prerequisites on the Jenkins agent
-- Docker installed, with the Jenkins service/user allowed to run `docker` commands
-  (e.g. added to the `docker` group on Linux)
-- Network access to pull the base images (`python:3.10-slim`, `node:20-alpine`,
-  `nginx:stable-alpine`) and to reach this Git repository
+- Docker **and** the Docker Compose plugin (`docker compose` CLI) installed, with the
+  Jenkins service/user allowed to run `docker` commands (e.g. added to the `docker`
+  group on Linux)
+- Network access to pull the base images (`mongo:7`, `python:3.10-slim`,
+  `node:20-alpine`, `nginx:stable-alpine`) and to reach this Git repository
 
 ### Credentials to configure in Jenkins
 
-Both Dockerfiles `COPY` the entire build context, so each app's `.env` file must
-exist on disk **before** `docker build` runs (it gets baked into the image — for
-the frontend, the `EXPO_PUBLIC_*` vars are inlined into the static web bundle at
-build time). Create these under **Manage Jenkins → Credentials**:
+`docker-compose.yml` reads the root `.env` for Mongo's root credentials, and each
+Dockerfile `COPY`s the full build context, so all three `.env` files must exist on
+disk **before** `docker compose up --build` runs (for the frontend, the
+`EXPO_PUBLIC_*` vars are inlined into the static web bundle at build time). Create
+these under **Manage Jenkins → Credentials**:
 
 | Credential ID | Type | Contents |
 |---|---|---|
+| `pomotask-root-env` | Secret file | Full contents of the root `.env` — see `.env.example` for the keys: `MONGO_INITDB_ROOT_USERNAME`, `MONGO_INITDB_ROOT_PASSWORD`, `MONGO_INITDB_DATABASE`. The username/password must match `DB_USER` / `DB_PASSWORD` below |
 | `pomotask-django-env` | Secret file | Full contents of `django/.env` — see `django/.env.example` for the keys: `ALLOWED_HOSTS`, `SECRET_KEY`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `AUTH_USERNAME`, `AUTH_PASSWORD`, `JWT_SECRET`, `JWT_EXPIRY_MINUTES`, `MONGO_CONTAINER_ID`, `MONGO_ADMIN_USER`, `MONGO_ADMIN_PASSWORD`, `BACKUP_EMAIL`, `GMAIL_APP_PASSWORD` |
 | `pomotask-react-native-env` | Secret file | Full contents of `react-native/.env` — see `react-native/.env.example` for the keys: `EXPO_PUBLIC_API_BASE_URL_MS1`, `EXPO_PUBLIC_API_BASE_URL_MS2` |
 
 If the Jenkins job pulls this repository over SSH/HTTPS with restricted access, also
 add a **Username with password** or **SSH key** credential and select it in the job's
-*Pipeline → SCM* configuration (this is separate from the two secret files above and
+*Pipeline → SCM* configuration (this is separate from the three secret files above and
 isn't referenced inside the `Jenkinsfile` itself).
 
 ### Setting up the pipeline job
@@ -211,13 +227,15 @@ isn't referenced inside the `Jenkinsfile` itself).
    want every branch built automatically).
 2. Under **Pipeline**, set *Definition* to **Pipeline script from SCM**, choose **Git**,
    point it at this repository, and set the script path to `Jenkinsfile`.
-3. Add the two **Secret file** credentials listed above (`pomotask-django-env`,
-   `pomotask-react-native-env`) before the first run.
+3. Add the three **Secret file** credentials listed above (`pomotask-root-env`,
+   `pomotask-django-env`, `pomotask-react-native-env`) before the first run.
 4. Run the job. On success it will:
-   - write `django/.env` and `react-native/.env` from the secret file credentials
-   - `docker build` the `pomotask-django` and `pomotask-react-native` images
-   - remove any previous containers with the same names and start fresh ones,
-     publishing the backend on port **4310** and the frontend on port **4392**
+   - write the root `.env`, `django/.env`, and `react-native/.env` from the secret
+     file credentials
+   - run `docker compose up -d --build`, which builds the `django` and
+     `react-native` images, pulls `mongo:7` if needed, and (re)creates all three
+     containers — publishing the backend on port **4310** and the frontend on
+     port **4392**
    - prune dangling images left over from the previous build
 5. (Optional) Add a webhook or polling trigger on the job to redeploy automatically
    on every push to `master`.
@@ -225,7 +243,9 @@ isn't referenced inside the `Jenkinsfile` itself).
 ### Notes
 - The pipeline assumes a Linux Jenkins agent (`sh` steps). If your agent is Windows,
   replace the `sh` blocks in `Jenkinsfile` with `bat` equivalents.
-- MongoDB itself is not managed by this pipeline — `DB_HOST` / `MONGO_*` values in
-  `django/.env` should point at your existing Mongo instance/container.
-- `docker run --restart unless-stopped` is used so both containers survive an agent
-  reboot without needing the pipeline to run again.
+- MongoDB is now managed by `docker-compose.yml` itself, with its data persisted in
+  the named volume `pomotask_mongo_data` — it survives container recreation and
+  agent reboots. `MONGO_CONTAINER_ID` in `django/.env` (used only by the unrelated
+  `django/db_backup.sh` script) should be set to `pomotask_mongo`.
+- All three services use `restart: unless-stopped`, so they come back up after an
+  agent reboot without needing the pipeline to run again.
