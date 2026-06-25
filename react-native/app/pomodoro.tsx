@@ -6,7 +6,7 @@ import { Audio } from 'expo-av';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Pause, Play, Settings2 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Dimensions, Platform, StyleSheet, View } from 'react-native';
+import { Dimensions, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, IconButton, Modal, Portal, SegmentedButtons, Surface, Text, TextInput } from 'react-native-paper';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 
@@ -28,6 +28,7 @@ export default function PomodoroScreen() {
     const [isActive, setIsActive] = useState(false);
     const [settingsVisible, setSettingsVisible] = useState(false);
     const [sound, setSound] = useState<Audio.Sound>();
+    const [sessions, setSessions] = useState<any[]>([]);
     const initTimeRef = useRef<number | null>(null);
 
     // Timer pulse animation
@@ -37,6 +38,14 @@ export default function PomodoroScreen() {
     const TIMES: any = { pomo: pomoLength, short: shortLength, long: longLength };
     const totalSeconds = TIMES[timerMode] * 60;
     const progress = (totalSeconds - secondsLeft) / totalSeconds;
+
+    const fetchHistory = () => {
+        if (taskId) {
+            Task.getTaskTimingHistory(taskId as string)
+                .then((res: any) => setSessions(res.data.data.sessions || []))
+                .catch((err: any) => console.error("Error fetching timing history:", err));
+        }
+    };
 
     useEffect(() => {
         if (taskId) {
@@ -50,6 +59,7 @@ export default function PomodoroScreen() {
                     setLongLength(Math.round((pomodoro.long_break || 900) / 60));
                 }
             }).catch(err => console.error("Error fetching timer status:", err));
+            fetchHistory();
         }
     }, [taskId]);
 
@@ -125,6 +135,7 @@ export default function PomodoroScreen() {
         if (taskId) {
             try {
                 await Task.taskTimerStatusUpdate(taskId as string, status ? 'started' : 'stopped');
+                if (!status) fetchHistory();
             } catch (err) {
                 console.error("Failed to update backend timer:", err);
             }
@@ -150,6 +161,25 @@ export default function PomodoroScreen() {
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
+    const formatSessionTime = (isoString: string) => {
+        const d = new Date(isoString);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const formatSessionDate = (isoString: string) => {
+        const d = new Date(isoString);
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    };
+
+    const formatDuration = (seconds: number) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        if (h > 0) return `${h}h ${m}m`;
+        if (m > 0) return `${m}m ${s}s`;
+        return `${s}s`;
+    };
+
     const btnColor = isActive ? '#EA4335' : BRAND.primary;
     const btnShadow = Platform.select({
         web: { boxShadow: isActive ? '0 4px 16px rgba(234,67,53,0.35)' : '0 4px 16px rgba(98,100,167,0.35)' } as any,
@@ -167,6 +197,8 @@ export default function PomodoroScreen() {
                 headerTitleStyle: { color: NEUTRAL[900], fontWeight: '700', fontSize: 17 },
                 headerTintColor: BRAND.primary,
             }} />
+
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
             <View style={[styles.mainLayout, !IS_WEB && styles.mainLayoutMobile]}>
                 {/* Left Section: Overall Task Timer */}
@@ -248,6 +280,33 @@ export default function PomodoroScreen() {
                 </Surface>
             </View>
 
+            {/* Session History */}
+            <View style={[styles.historySection, !IS_WEB && styles.historySectionMobile]}>
+                <Text style={styles.historyTitle}>SESSION HISTORY</Text>
+                {sessions.length === 0 ? (
+                    <Text style={styles.historyEmpty}>No sessions recorded yet.</Text>
+                ) : (
+                    sessions.map((session, index) => (
+                        <View key={index} style={styles.historyRow}>
+                            <View style={[styles.historyDot, !session.stopped_at && styles.historyDotActive]} />
+                            <View style={styles.historyRowContent}>
+                                <Text style={styles.historyDate}>{formatSessionDate(session.started_at)}</Text>
+                                <Text style={styles.historyTime}>
+                                    {formatSessionTime(session.started_at)}
+                                    {' → '}
+                                    {session.stopped_at ? formatSessionTime(session.stopped_at) : <Text style={styles.historyActive}>Active</Text>}
+                                </Text>
+                            </View>
+                            <Text style={[styles.historyDuration, !session.stopped_at && styles.historyDurationActive]}>
+                                {formatDuration(session.duration_seconds)}
+                            </Text>
+                        </View>
+                    ))
+                )}
+            </View>
+
+            </ScrollView>
+
             <Portal>
                 <Modal
                     visible={settingsVisible}
@@ -310,14 +369,17 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: SURFACE.page,
     },
+    scrollContent: {
+        flexGrow: 1,
+    },
     mainLayout: {
-        flex: 1,
         flexDirection: 'row',
         padding: 20,
         gap: 20,
         maxWidth: 1200,
         alignSelf: 'center',
         width: '100%',
+        minHeight: IS_WEB ? 520 : undefined,
     },
     mainLayoutMobile: {
         flexDirection: 'column',
@@ -483,5 +545,77 @@ const styles = StyleSheet.create({
         height: 48,
         justifyContent: 'center',
         borderRadius: RADIUS.md,
+    },
+    historySection: {
+        maxWidth: 1200,
+        alignSelf: 'center',
+        width: '100%',
+        paddingHorizontal: 20,
+        paddingBottom: 32,
+    },
+    historySectionMobile: {
+        paddingHorizontal: 16,
+    },
+    historyTitle: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: NEUTRAL[500],
+        letterSpacing: 2,
+        marginBottom: 12,
+        textTransform: 'uppercase',
+    },
+    historyEmpty: {
+        fontSize: 14,
+        color: NEUTRAL[400],
+        textAlign: 'center',
+        paddingVertical: 16,
+    },
+    historyRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        borderRadius: RADIUS.md,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        marginBottom: 8,
+        gap: 12,
+        ...Platform.select({
+            web: { boxShadow: '0 1px 4px rgba(0,0,0,0.06)' } as any,
+            default: { elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
+        }),
+    },
+    historyDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: NEUTRAL[300],
+    },
+    historyDotActive: {
+        backgroundColor: '#34A853',
+    },
+    historyRowContent: {
+        flex: 1,
+    },
+    historyDate: {
+        fontSize: 11,
+        color: NEUTRAL[400],
+        marginBottom: 2,
+    },
+    historyTime: {
+        fontSize: 14,
+        color: NEUTRAL[700],
+        fontWeight: '500',
+    },
+    historyActive: {
+        color: '#34A853',
+        fontWeight: '600',
+    },
+    historyDuration: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: NEUTRAL[600],
+    },
+    historyDurationActive: {
+        color: '#34A853',
     },
 });

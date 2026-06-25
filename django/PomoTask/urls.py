@@ -36,6 +36,7 @@ urlpatterns = [
 
     path('task/<str:task_id>/timing', TaskViews.task_timing, name='get-task-timing'),
     path('task/<str:task_id>/timing/update', TaskViews.create_task_timing, name='update-task-timing'),
+    path('task/<str:task_id>/timing/history', TaskViews.task_timing_history, name='task-timing-history'),
     path('calendar/task', TaskViews.calendar_task_list, name='calendar-task-list'),
 
     path('activity/create', ActivityViews.create_activity, name='create-activity'),

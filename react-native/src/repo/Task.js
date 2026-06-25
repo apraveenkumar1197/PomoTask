@@ -170,6 +170,9 @@ export default class Task {
     static taskTimerStatusUpdate(taskId, status) {
         return Base.post(`task/${taskId}/timing/update`, { status });
     }
+    static getTaskTimingHistory(taskId) {
+        return Base.get(`task/${taskId}/timing/history`);
+    }
     static listTags() {
         return Base.get('tag/list');
     }

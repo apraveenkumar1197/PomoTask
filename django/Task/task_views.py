@@ -10,6 +10,7 @@ from Task.services.task_editor import TaskEditor
 from Task.services.task_list_fetcher import TaskListFetcher
 from Task.services.task_timer_status_fetcher import TaskTimerStatusFetcher
 from Task.services.task_timer_status_updater import TaskTimerStatusUpdater
+from Task.services.task_timing_history_fetcher import TaskTimingHistoryFetcher
 from Task.services.task_updater import TaskUpdater
 from common.http_utils import api_response
 
@@ -47,6 +48,10 @@ class TaskViews(View):
     def create_task_timing(request, task_id):
         data = json.loads(request.body.decode('utf-8'))
         return api_response(TaskTimerStatusUpdater(task_id, data['status']).update())
+
+    @require_http_methods(["GET"])
+    def task_timing_history(request, task_id):
+        return api_response(TaskTimingHistoryFetcher(task_id).fetch())
 
     @require_http_methods(["GET"])
     def calendar_task_list(request):
