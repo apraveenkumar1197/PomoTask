@@ -32,6 +32,7 @@ class TaskEditor:
             'notes': task.description,
             'status_bool': False,
             'status': task.status,
+            'cancellation_reason': task.cancellation_reason,
             'tags': TagListFormatter(task.tags).format(),
             'goal': goal,
         }

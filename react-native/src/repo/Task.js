@@ -85,6 +85,7 @@ export default class Task {
      * @param {string | null} taskNotes
      * @param {string[] | null} taskTags
      * @param {any | null} taskGoal
+     * @param {string | null} taskStatusReason
      */
     static update(
         taskId,
@@ -98,7 +99,8 @@ export default class Task {
         taskRemindAt = null,
         taskNotes = null,
         taskTags = null,
-        taskGoal = null
+        taskGoal = null,
+        taskStatusReason = null
     ) {
         let taskData = Task.formatTaskData(taskId,
             taskTitle,
@@ -111,7 +113,8 @@ export default class Task {
             taskRemindAt,
             taskNotes,
             taskTags,
-            taskGoal);
+            taskGoal,
+            taskStatusReason);
 
         return Base.patch(`task/${taskId}`, {
             task: taskData
@@ -131,6 +134,7 @@ export default class Task {
      * @param {string | null} taskNotes
      * @param {string[] | null} taskTags
      * @param {any | null} taskGoal
+     * @param {string | null} taskStatusReason
      */
     static formatTaskData(taskId,
         taskTitle,
@@ -143,11 +147,13 @@ export default class Task {
         taskRemindAt = null,
         taskNotes = null,
         taskTags = null,
-        taskGoal = null) {
+        taskGoal = null,
+        taskStatusReason = null) {
         var taskData = {};
 
         if (taskTitle != null) taskData['title'] = taskTitle;
         if (taskStatus != null) taskData['status'] = taskStatus;
+        if (taskStatusReason != null) taskData['cancellation_reason'] = taskStatusReason;
         if (taskAddToMyDay != null) taskData['add_to_my_day'] = taskAddToMyDay;
         if (taskImportant != null) taskData['important_flag'] = taskImportant;
         if (taskDueDate != null) taskData['due_date'] = taskDueDate;

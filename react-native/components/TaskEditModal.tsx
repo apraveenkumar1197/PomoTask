@@ -2,7 +2,7 @@ import { Calendar, Clock, Lightbulb, Star, Trash2 } from 'lucide-react-native';
 
 import React, { useEffect, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Button, Chip, IconButton, Modal, Portal, Text, TextInput } from 'react-native-paper';
+import { ActivityIndicator, Button, Chip, IconButton, Menu, Modal, Portal, Text, TextInput } from 'react-native-paper';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { BRAND, NEUTRAL, RADIUS, SHADOWS, SURFACE } from '@/constants/theme';
 import Task from '../src/repo/Task';
@@ -34,6 +34,9 @@ export default function TaskEditModal({ visible, taskId, onDismiss, onTaskUpdate
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(false);
     const [status, setStatus] = useState('0');
+    const [statuses, setStatuses] = useState<{ value: string; label: string }[]>([]);
+    const [statusReason, setStatusReason] = useState('');
+    const [statusMenuVisible, setStatusMenuVisible] = useState(false);
 
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showReminderPicker, setShowReminderPicker] = useState(false);
@@ -72,7 +75,7 @@ export default function TaskEditModal({ visible, taskId, onDismiss, onTaskUpdate
         try {
             // @ts-ignore
             const res = await Task.edit(taskId!);
-            const { task, goals } = res.data.data;
+            const { task, goals, statuses } = res.data.data;
 
             setTitle(task.title || '');
             setImportant(task.is_important_flag);
@@ -85,6 +88,8 @@ export default function TaskEditModal({ visible, taskId, onDismiss, onTaskUpdate
             setTags(task.tags ? task.tags.map((t: any) => typeof t === 'string' ? t : t.name) : []);
             setGoal(task.goal);
             setStatus(task.status);
+            setStatuses(statuses || []);
+            setStatusReason(task.cancellation_reason || '');
 
             console.log(`Due date ::: ${dueDate}`)
 
@@ -119,7 +124,8 @@ export default function TaskEditModal({ visible, taskId, onDismiss, onTaskUpdate
                 reminder?.toISOString(),
                 notes,
                 tags,
-                goal
+                goal,
+                statusReason
             );
 
             if (reminder) {
@@ -199,6 +205,49 @@ export default function TaskEditModal({ visible, taskId, onDismiss, onTaskUpdate
                                     outlineColor="#E0E0F0"
                                     activeOutlineColor={BRAND.primary}
                                 />
+
+                                <View style={styles.goalSection}>
+                                    <Text style={styles.label}>Status</Text>
+                                    <Menu
+                                        visible={statusMenuVisible}
+                                        onDismiss={() => setStatusMenuVisible(false)}
+                                        anchor={
+                                            <Button
+                                                mode="outlined"
+                                                onPress={() => setStatusMenuVisible(true)}
+                                                style={styles.dateBtn}
+                                                textColor={NEUTRAL[900]}
+                                            >
+                                                {statuses.find(s => s.value === status)?.label || 'Select Status'}
+                                            </Button>
+                                        }
+                                    >
+                                        {statuses.map(s => (
+                                            <Menu.Item
+                                                key={s.value}
+                                                onPress={() => {
+                                                    setStatus(s.value);
+                                                    setStatusMenuVisible(false);
+                                                }}
+                                                title={s.label}
+                                            />
+                                        ))}
+                                    </Menu>
+                                    {statuses.find(s => s.label === 'Cancelled')?.value === status && (
+                                        <TextInput
+                                            label="Cancellation reason"
+                                            value={statusReason}
+                                            onChangeText={setStatusReason}
+                                            mode="outlined"
+                                            multiline
+                                            numberOfLines={2}
+                                            style={[styles.input, { marginTop: 12 }]}
+                                            textColor="#000"
+                                            outlineColor="#E0E0F0"
+                                            activeOutlineColor={BRAND.primary}
+                                        />
+                                    )}
+                                </View>
 
                                 <View style={styles.row}>
                                     <View style={styles.checkboxItem}>

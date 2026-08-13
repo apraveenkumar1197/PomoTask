@@ -21,12 +21,12 @@ class TaskQuerySet(models.query.QuerySet):
         return self.filter(title__regex=search_term)
 
     def not_done(self):
-        return (self.exclude(status__in=[Status.Done, Status.Deleted])
+        return (self.exclude(status__in=[Status.Done, Status.Deleted, Status.Cancelled])
                     .exclude(record_type='activity')
                     .order_by('due_date', 'from_time'))
 
     def not_live(self):
-        return (self.filter(status__in=[Status.Done, Status.Deleted])
+        return (self.filter(status__in=[Status.Done, Status.Deleted, Status.Cancelled])
                     .exclude(record_type='activity')
                     .order_by('updated_at', 'due_date').reverse())
 
@@ -86,6 +86,7 @@ class Task(models.Model):
         choices=Status.choices,
         default=Status.ToDo,
     )
+    cancellation_reason = models.TextField(null=True, blank=True)
     tags = models.Field(models.ManyToManyField(Tags, related_name='tasks'))
     goal = models.Field(models.OneToOneField(Goal, related_name='goals', on_delete=models.RESTRICT))
     created_at = models.DateTimeField(auto_now_add=True)  # Set only when created

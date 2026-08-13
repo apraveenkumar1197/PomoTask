@@ -6,3 +6,4 @@ class Status(models.TextChoices):
     Done = '1', 'Done'
     InProgress = '2', 'In Progress'
     Deleted = '3', 'Deleted'
+    Cancelled = '4', 'Cancelled'

@@ -41,6 +41,8 @@ class TaskUpdateFormatter:
             td['estimate'] = EstimateCalculator(self.task_data['from_time'], self.task_data['to_time']).estimate()
         if 'status' in self.task_data:
             td['status'] = self.task_data['status']
+        if 'cancellation_reason' in self.task_data:
+            td['cancellation_reason'] = self.task_data['cancellation_reason']
         if 'notes' in self.task_data:
             td['description'] = self.task_data['notes']
         if 'goal' in self.task_data:
