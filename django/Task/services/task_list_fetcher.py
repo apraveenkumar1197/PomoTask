@@ -41,6 +41,11 @@ class TaskListFetcher:
         if self.tag_names:
             tasks = self.tag_filtered_ids(tasks)
 
+        tasks = list(tasks)
+        view_key = None if self.filter == 'task-history' else (self.filter or 'default')
+        if view_key:
+            tasks.sort(key=lambda t: (t.view_order or {}).get(view_key, float('inf')))
+
         tag_names = Tags.objects.values_list('name', flat=True)
         tag_names = sorted(list(tag_names))
         task_list = TaskListFormatter(tasks, self.search_term).format()

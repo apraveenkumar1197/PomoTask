@@ -28,6 +28,7 @@ urlpatterns = [
     path('dashi/details', GeneralView.dashboard, name='dashi-details'),
     path('task/new', TaskViews.task_init_data, name='task-init-data'),
     path('task/create', TaskViews.create_task, name='create-task'),
+    path('task/reorder', TaskViews.reorder_tasks, name='reorder-tasks'),
     path('task/<str:task_id>', TaskViews.update_task, name='update-task'),
     path('task/<str:task_id>/edit', TaskViews.edit_task, name='edit-task'),
     path('task', TaskViews.task_list, name='task-list'),

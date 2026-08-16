@@ -8,6 +8,7 @@ from Task.services.task_create_init_data_fetcher import TaskCreateInitDataFetche
 from Task.services.task_creator import TaskCreator
 from Task.services.task_editor import TaskEditor
 from Task.services.task_list_fetcher import TaskListFetcher
+from Task.services.task_reorder_service import TaskReorderService
 from Task.services.task_timer_status_fetcher import TaskTimerStatusFetcher
 from Task.services.task_timer_status_updater import TaskTimerStatusUpdater
 from Task.services.task_timing_history_fetcher import TaskTimingHistoryFetcher
@@ -30,6 +31,12 @@ class TaskViews(View):
     def task_list(request):
         data = json.loads(request.body.decode('utf-8'))
         return api_response(TaskListFetcher(data['filters'], data['search_term']).fetch())
+
+    @require_http_methods(["POST"])
+    def reorder_tasks(request):
+        data = json.loads(request.body.decode('utf-8'))
+        view_key = data.get('filter') or 'default'
+        return api_response(TaskReorderService(view_key, data['task_ids']).reorder())
 
     @require_http_methods(["GET"])
     def edit_task(request, task_id):

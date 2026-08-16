@@ -87,6 +87,7 @@ class Task(models.Model):
         default=Status.ToDo,
     )
     cancellation_reason = models.TextField(null=True, blank=True)
+    view_order = models.JSONField(blank=True, default=dict)
     tags = models.Field(models.ManyToManyField(Tags, related_name='tasks'))
     goal = models.Field(models.OneToOneField(Goal, related_name='goals', on_delete=models.RESTRICT))
     created_at = models.DateTimeField(auto_now_add=True)  # Set only when created
