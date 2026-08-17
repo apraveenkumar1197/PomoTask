@@ -16,6 +16,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ThemedView } from '@/components/themed-view';
 import { BRAND, NEUTRAL, RADIUS, SHADOWS, SURFACE } from '@/constants/theme';
 import Task from '@/src/repo/Task';
+import DraggableTaskList from '../../components/DraggableTaskList';
 import TaskAddModal from '../../components/TaskAddModal';
 import TaskEditModal from '../../components/TaskEditModal';
 import TaskSectionNav from '../../components/TaskSectionNav';
@@ -25,7 +26,7 @@ const IS_WEB = Platform.OS === 'web' && SCREEN_WIDTH > 768;
 
 export default function TasksScreen() {
     const router = useRouter();
-    const [tasks, setTasks] = useState([]);
+    const [tasks, setTasks] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -91,6 +92,13 @@ export default function TasksScreen() {
         fetchTasks();
     };
 
+    const handleDragEnd = (data: any[]) => {
+        setTasks(data);
+        Task.reorder(activeFilter, data.map((t: any) => t.id)).catch((err: any) => {
+            console.error("Failed to persist task order", err);
+        });
+    };
+
     const toggleTaskStatus = async (task: any) => {
         const newStatus = task.status === '1' ? '0' : '1';
         setUpdatingTasks(prev => [...prev, task.id]);
@@ -146,13 +154,13 @@ export default function TasksScreen() {
         return BRAND.primary;
     };
 
-    const renderTaskItem = ({ item, index }: { item: any; index: number }) => {
+    const renderTaskItem = ({ item, index, isActive }: { item: any; index: number; isActive?: boolean }) => {
         const isUpdating = updatingTasks.includes(item.id);
         const accentColor = getAccentColor(item);
 
         return (
             <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).duration(280).springify()}>
-                <Surface style={[styles.taskCard, isUpdating && { opacity: 0.6 }]} elevation={0}>
+                <Surface style={[styles.taskCard, isUpdating && { opacity: 0.6 }, isActive && styles.taskCardDragging]} elevation={0}>
                     {/* Left accent strip */}
                     <View style={[styles.accentStrip, { backgroundColor: accentColor }]} />
 
@@ -316,23 +324,44 @@ export default function TasksScreen() {
                         )}
                     </View>
 
-                    <FlatList
-                        data={tasks}
-                        renderItem={renderTaskItem}
-                        keyExtractor={(item) => item.id.toString()}
-                        style={styles.taskFlatList}
-                        contentContainerStyle={styles.listContent}
-                        refreshControl={
-                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND.primary} />
-                        }
-                        ListEmptyComponent={
-                            loading ? null : (
-                                <View style={styles.emptyState}>
-                                    <Text style={{ color: NEUTRAL[500], fontSize: 15 }}>No tasks found</Text>
-                                </View>
-                            )
-                        }
-                    />
+                    {activeFilter === 'task-history' ? (
+                        <FlatList
+                            data={tasks}
+                            renderItem={renderTaskItem}
+                            keyExtractor={(item) => item.id.toString()}
+                            style={styles.taskFlatList}
+                            contentContainerStyle={styles.listContent}
+                            refreshControl={
+                                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND.primary} />
+                            }
+                            ListEmptyComponent={
+                                loading ? null : (
+                                    <View style={styles.emptyState}>
+                                        <Text style={{ color: NEUTRAL[500], fontSize: 15 }}>No tasks found</Text>
+                                    </View>
+                                )
+                            }
+                        />
+                    ) : (
+                        <DraggableTaskList
+                            data={tasks}
+                            renderItem={renderTaskItem}
+                            keyExtractor={(item) => item.id.toString()}
+                            onDragEnd={handleDragEnd}
+                            style={styles.taskFlatList}
+                            contentContainerStyle={styles.listContent}
+                            refreshControl={
+                                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND.primary} />
+                            }
+                            ListEmptyComponent={
+                                loading ? null : (
+                                    <View style={styles.emptyState}>
+                                        <Text style={{ color: NEUTRAL[500], fontSize: 15 }}>No tasks found</Text>
+                                    </View>
+                                )
+                            }
+                        />
+                    )}
 
                     {loading && !refreshing && (
                         <ActivityIndicator animating={true} color={BRAND.primary} style={styles.loader} />
@@ -448,6 +477,13 @@ const styles = StyleSheet.create({
         ...Platform.select({
             web: SHADOWS.web.card as any,
             default: SHADOWS.native.card,
+        }),
+    },
+    taskCardDragging: {
+        opacity: 0.85,
+        ...Platform.select({
+            web: { boxShadow: '0 4px 16px rgba(0,0,0,0.18)' } as any,
+            default: { elevation: 6 },
         }),
     },
     accentStrip: {
