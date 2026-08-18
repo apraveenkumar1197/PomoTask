@@ -170,6 +170,10 @@ export default class Task {
         return taskData;
     }
 
+    static reorder(filter, taskIds) {
+        return Base.post('task/reorder', { filter, task_ids: taskIds });
+    }
+
     static getTaskTimerStatus(taskId) {
         return Base.get(`task/${taskId}/timing`);
     }
