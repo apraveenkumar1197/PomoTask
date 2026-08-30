@@ -20,12 +20,19 @@ services:
       dockerfile: Dockerfile
     container_name: pomotask_django
     restart: unless-stopped
-    env_file:
-      - ./django/.env
     environment:
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
+      DB_NAME: ${DB_NAME:-pomotask}
+      DB_USER: ${DB_USER:?set DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
       # Force the app to talk to the "mongo" service over the compose
-      # network, regardless of DB_HOST in django/.env
+      # network, regardless of any other DB_HOST value.
       DB_HOST: mongo
+      AUTH_USERNAME: ${AUTH_USERNAME:?set AUTH_USERNAME}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:?set AUTH_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      JWT_EXPIRY_MINUTES: ${JWT_EXPIRY_MINUTES:-3600}
     depends_on:
       - mongo
     ports:
@@ -39,8 +46,12 @@ services:
       dockerfile: Dockerfile
     container_name: pomotask_react_native
     restart: unless-stopped
-    env_file:
-      - ./react-native/.env
+    # No env_file/environment here: the Dockerfile COPYs react-native/.env
+    # into the build context and reads it directly during `npx expo export`,
+    # baking EXPO_PUBLIC_* into the static bundle at build time. Docker
+    # Compose's env_file/environment only affect the container's runtime
+    # process environment, which nginx (this container's actual process)
+    # never reads those values from anyway.
     depends_on:
       - django
     ports:

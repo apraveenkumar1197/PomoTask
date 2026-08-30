@@ -1,0 +1,78 @@
+# Production compose file: pulls pre-built images from Docker Hub instead of
+# building locally, and connects to a MongoDB that already runs elsewhere on
+# this host (shared across other projects) rather than starting its own.
+#
+# Before use:
+#   1. Build & push images first (from a dev machine or CI), e.g.:
+#        docker build -t docker.io/apraveenkumar1197/pomotask-django:latest ./django
+#        docker push docker.io/apraveenkumar1197/pomotask-django:latest
+#        docker build -t docker.io/apraveenkumar1197/pomotask-react-native:latest ./react-native
+#        docker push docker.io/apraveenkumar1197/pomotask-react-native:latest
+#      NOTE: react-native's EXPO_PUBLIC_API_BASE_URL_MS1/MS2 are baked into the
+#      static web bundle at *build* time (`npx expo export -p web`), not read
+#      at container startup. Set them correctly in react-native/.env (or via
+#      --build-arg, if the Dockerfile is updated to accept one) BEFORE building
+#      that image — changing react-native/.env after the image is built/pushed
+#      has no effect on the running container.
+#   2. No .env file is read by this compose file for django — all values come
+#      from the shell/deployment environment via ${VAR} substitution below.
+#      Export them before running (or use `docker compose --env-file <path>`,
+#      or a process manager's own secrets mechanism), e.g.:
+#        export SECRET_KEY=...
+#        export DB_USER=root
+#        export DB_PASSWORD=...
+#        export AUTH_USERNAME=...
+#        export AUTH_PASSWORD=...
+#        export JWT_SECRET=...
+#      Vars with no default below (SECRET_KEY, DB_USER, DB_PASSWORD,
+#      AUTH_USERNAME, AUTH_PASSWORD, JWT_SECRET) are required — compose
+#      refuses to start without them, rather than silently running with an
+#      empty secret. Do not hardcode real secret values into this file: it's
+#      tracked in git, and anyone with repo access would get them in plaintext.
+#   3. Set TAG if deploying a specific image version (defaults to "latest").
+#   4. Make sure the shared "main" network already exists on this host and
+#      the shared Mongo container is attached to it:
+#        docker network create main   # if it doesn't exist yet
+#      Adjust MONGO_HOST below if the shared Mongo container's name/hostname
+#      on that network isn't "mongo".
+#
+# Run with:
+#   docker compose -f docker-compose.prod.yml up -d
+
+services:
+  django:
+    image: docker.io/apraveenkumar1197/pomotask-django:${TAG:-latest}
+    container_name: pomotask_django
+    restart: unless-stopped
+    environment:
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
+      DB_NAME: ${DB_NAME:-pomotask}
+      DB_USER: ${DB_USER:?set DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+      # Shared Mongo is reached by its hostname on the external "main"
+      # network, not a mongo service defined in this file.
+      DB_HOST: ${MONGO_HOST:-mongo}
+      AUTH_USERNAME: ${AUTH_USERNAME:?set AUTH_USERNAME}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:?set AUTH_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      JWT_EXPIRY_MINUTES: ${JWT_EXPIRY_MINUTES:-3600}
+    ports:
+      - "4310:8000"
+    networks:
+      - main
+
+  react-native:
+    image: docker.io/apraveenkumar1197/pomotask-react-native:${TAG:-latest}
+    container_name: pomotask_react_native
+    restart: unless-stopped
+    depends_on:
+      - django
+    ports:
+      - "4392:80"
+    networks:
+      - main
+
+networks:
+  main:
+    external: true
