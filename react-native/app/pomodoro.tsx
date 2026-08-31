@@ -6,7 +6,7 @@ import { Audio } from 'expo-av';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Pause, Play, Settings2 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Dimensions, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { AppState, Dimensions, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, IconButton, Modal, Portal, SegmentedButtons, Surface, Text, TextInput } from 'react-native-paper';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 
@@ -30,6 +30,9 @@ export default function PomodoroScreen() {
     const [sound, setSound] = useState<Audio.Sound>();
     const [sessions, setSessions] = useState<any[]>([]);
     const initTimeRef = useRef<number | null>(null);
+    const baseSecondsLeftRef = useRef(0);
+    const baseOverallSecondsRef = useRef(0);
+    const hasSwitchedRef = useRef(false);
 
     // Timer pulse animation
     const timerScale = useSharedValue(1);
@@ -64,24 +67,46 @@ export default function PomodoroScreen() {
     }, [taskId]);
 
     useEffect(() => {
-        let interval: any = null;
-        if (isActive) {
-            initTimeRef.current = Date.now();
-            interval = setInterval(() => {
-                setSecondsLeft((prev) => {
-                    if (prev <= 1) {
-                        handleAutoSwitch();
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-                setOverallSeconds(prev => prev + 1);
-            }, 1000);
-        } else {
+        if (!isActive) {
             initTimeRef.current = null;
-            clearInterval(interval);
+            return;
         }
-        return () => clearInterval(interval);
+
+        // Browsers throttle setInterval in background tabs (Chrome can drop
+        // to firing once a minute after ~5 min hidden), so ticks can't be
+        // trusted to represent exactly one second each. Instead, anchor to a
+        // real timestamp and recompute from actual elapsed wall-clock time on
+        // every tick — this self-corrects regardless of how delayed a tick
+        // was, rather than permanently falling behind.
+        initTimeRef.current = Date.now();
+        baseSecondsLeftRef.current = secondsLeft;
+        baseOverallSecondsRef.current = overallSeconds;
+        hasSwitchedRef.current = false;
+
+        const syncFromElapsedTime = () => {
+            if (initTimeRef.current === null) return;
+            const elapsed = Math.floor((Date.now() - initTimeRef.current) / 1000);
+            const nextSecondsLeft = Math.max(0, baseSecondsLeftRef.current - elapsed);
+            setSecondsLeft(nextSecondsLeft);
+            setOverallSeconds(baseOverallSecondsRef.current + elapsed);
+            if (nextSecondsLeft <= 0 && !hasSwitchedRef.current) {
+                hasSwitchedRef.current = true;
+                handleAutoSwitch();
+            }
+        };
+
+        const interval = setInterval(syncFromElapsedTime, 1000);
+        // Also resync immediately when the tab/app regains focus, so the
+        // display snaps to the correct value right away instead of waiting
+        // for the next (possibly still-delayed) tick.
+        const appStateSub = AppState.addEventListener('change', (nextState) => {
+            if (nextState === 'active') syncFromElapsedTime();
+        });
+
+        return () => {
+            clearInterval(interval);
+            appStateSub.remove();
+        };
     }, [isActive, timerMode]);
 
     useEffect(() => {
