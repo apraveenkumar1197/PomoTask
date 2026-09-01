@@ -6,14 +6,23 @@
 #   1. Build & push images first (from a dev machine or CI), e.g.:
 #        docker build -t docker.io/apraveenkumar1197/pomotask-django:latest ./django
 #        docker push docker.io/apraveenkumar1197/pomotask-django:latest
-#        docker build -t docker.io/apraveenkumar1197/pomotask-react-native:latest ./react-native
+#        docker build \
+#          --build-arg EXPO_PUBLIC_API_BASE_URL_MS1=https://your-api-host/ \
+#          --build-arg EXPO_PUBLIC_API_BASE_URL_MS2=https://your-secondary-api-host/ \
+#          -t docker.io/apraveenkumar1197/pomotask-react-native:latest ./react-native
 #        docker push docker.io/apraveenkumar1197/pomotask-react-native:latest
 #      NOTE: react-native's EXPO_PUBLIC_API_BASE_URL_MS1/MS2 are baked into the
 #      static web bundle at *build* time (`npx expo export -p web`), not read
-#      at container startup. Set them correctly in react-native/.env (or via
-#      --build-arg, if the Dockerfile is updated to accept one) BEFORE building
-#      that image — changing react-native/.env after the image is built/pushed
-#      has no effect on the running container.
+#      at container startup — nothing in this compose file's environment: can
+#      affect them. react-native/.env is gitignored, and its Dockerfile's
+#      COPY . . does NOT reliably bring it into the build context — verified
+#      directly on Docker Desktop, which excludes gitignored files from the
+#      build context transfer even for a plain local build, not just a fresh
+#      git checkout. ALWAYS pass the --build-args above explicitly; omitting
+#      them bakes EXPO_PUBLIC_* in as the literal string "undefined", which
+#      is exactly the bug that prompted this note. Changing either after the
+#      image is built/pushed has no effect on a running container — it needs
+#      a rebuild.
 #   2. No .env file is read by this compose file for django — all values come
 #      from the shell/deployment environment via ${VAR} substitution below.
 #      Export them before running (or use `docker compose --env-file <path>`,

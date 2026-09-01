@@ -44,14 +44,20 @@ services:
     build:
       context: ./react-native
       dockerfile: Dockerfile
+      # Required — do not rely on react-native/.env being picked up by COPY.
+      # It's gitignored, and Docker Desktop's build-context transfer on this
+      # setup excludes gitignored files even for a plain local build (verified
+      # directly: COPY . . here does not bring in .env at all, regardless of
+      # where the build runs from). Set these in your shell or a root .env
+      # before running `docker compose build`/`up --build`.
+      args:
+        EXPO_PUBLIC_API_BASE_URL_MS1: ${EXPO_PUBLIC_API_BASE_URL_MS1:?set EXPO_PUBLIC_API_BASE_URL_MS1}
+        EXPO_PUBLIC_API_BASE_URL_MS2: ${EXPO_PUBLIC_API_BASE_URL_MS2:?set EXPO_PUBLIC_API_BASE_URL_MS2}
     container_name: pomotask_react_native
     restart: unless-stopped
-    # No env_file/environment here: the Dockerfile COPYs react-native/.env
-    # into the build context and reads it directly during `npx expo export`,
-    # baking EXPO_PUBLIC_* into the static bundle at build time. Docker
-    # Compose's env_file/environment only affect the container's runtime
-    # process environment, which nginx (this container's actual process)
-    # never reads those values from anyway.
+    # No env_file/environment here: EXPO_PUBLIC_* get baked into the static
+    # bundle at build time (see build.args above), not read by nginx (this
+    # container's actual runtime process) at container start.
     depends_on:
       - django
     ports:
