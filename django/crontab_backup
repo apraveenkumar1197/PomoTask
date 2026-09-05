@@ -1,0 +1,2 @@
+0 2 * * * root . /etc/container_environment.sh; cd /app && python manage.py backup_database >> /var/log/pomotask_backup.log 2>&1
+

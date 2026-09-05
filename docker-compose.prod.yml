@@ -66,6 +66,9 @@ services:
       AUTH_PASSWORD: ${AUTH_PASSWORD:?set AUTH_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
       JWT_EXPIRY_MINUTES: ${JWT_EXPIRY_MINUTES:-3600}
+      # Optional — the daily backup_database cron job (baked into this image)
+      # skips itself cleanly if this isn't set, so it's not required.
+      DROPBOX_ACCESS_TOKEN: ${DROPBOX_ACCESS_TOKEN:-}
     ports:
       - "4310:8000"
     networks:
