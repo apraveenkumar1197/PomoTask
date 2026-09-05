@@ -16,9 +16,12 @@ class Command(BaseCommand):
     help = 'Dumps the MongoDB database via mongodump and uploads the archive to Dropbox'
 
     def handle(self, *args, **options):
-        access_token = os.environ.get('DROPBOX_ACCESS_TOKEN')
-        if not access_token:
-            self.stdout.write('DROPBOX_ACCESS_TOKEN is not set, skipping backup.')
+        dbx = self._get_client()
+        if dbx is None:
+            self.stdout.write(
+                'Neither DROPBOX_REFRESH_TOKEN+DROPBOX_APP_KEY+DROPBOX_APP_SECRET nor '
+                'DROPBOX_ACCESS_TOKEN is set, skipping backup.'
+            )
             return
 
         archive_path = self._dump_database()
@@ -26,9 +29,30 @@ class Command(BaseCommand):
             return
 
         try:
-            self._upload_to_dropbox(archive_path, access_token)
+            self._upload_to_dropbox(archive_path, dbx)
         finally:
             os.remove(archive_path)
+
+    def _get_client(self):
+        """Prefer a refresh token (auto-renews indefinitely) over a bare
+        access token (Dropbox's short-lived "sl." tokens expire in hours and
+        cannot self-renew without one) — mirrors dropbox_upload.py's own
+        get_client() logic."""
+        refresh_token = os.environ.get('DROPBOX_REFRESH_TOKEN')
+        app_key = os.environ.get('DROPBOX_APP_KEY')
+        app_secret = os.environ.get('DROPBOX_APP_SECRET')
+        if refresh_token and app_key and app_secret:
+            return dropbox.Dropbox(
+                oauth2_refresh_token=refresh_token,
+                app_key=app_key,
+                app_secret=app_secret,
+            )
+
+        access_token = os.environ.get('DROPBOX_ACCESS_TOKEN')
+        if access_token:
+            return dropbox.Dropbox(access_token)
+
+        return None
 
     def _dump_database(self):
         db_host = config('DB_HOST', default='localhost')
@@ -68,12 +92,11 @@ class Command(BaseCommand):
 
         return archive_path
 
-    def _upload_to_dropbox(self, file_path, access_token):
-        dbx = dropbox.Dropbox(access_token)
+    def _upload_to_dropbox(self, file_path, dbx):
         try:
             dbx.users_get_current_account()
         except AuthError:
-            self.stderr.write('Invalid or expired DROPBOX_ACCESS_TOKEN.')
+            self.stderr.write('Dropbox credentials are invalid or expired.')
             return
 
         file_name = os.path.basename(file_path)

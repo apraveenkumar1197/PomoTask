@@ -67,7 +67,12 @@ services:
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
       JWT_EXPIRY_MINUTES: ${JWT_EXPIRY_MINUTES:-3600}
       # Optional — the daily backup_database cron job (baked into this image)
-      # skips itself cleanly if this isn't set, so it's not required.
+      # skips itself cleanly if none of these are set. Prefer the refresh
+      # token trio (auto-renews indefinitely); DROPBOX_ACCESS_TOKEN alone is
+      # short-lived and will silently stop working after a few hours.
+      DROPBOX_REFRESH_TOKEN: ${DROPBOX_REFRESH_TOKEN:-}
+      DROPBOX_APP_KEY: ${DROPBOX_APP_KEY:-}
+      DROPBOX_APP_SECRET: ${DROPBOX_APP_SECRET:-}
       DROPBOX_ACCESS_TOKEN: ${DROPBOX_ACCESS_TOKEN:-}
     ports:
       - "4310:8000"
