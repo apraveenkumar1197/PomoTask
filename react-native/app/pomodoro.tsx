@@ -137,7 +137,7 @@ export default function PomodoroScreen() {
 
     async function playSound() {
         try {
-            const { sound } = await Audio.Sound.createAsync(require('../../assets/sounds/timesUp.mp3'));
+            const { sound } = await Audio.Sound.createAsync(require('@/assets/sounds/wake_up.mp3'));
             setSound(sound);
             await sound.playAsync();
         } catch (e) {
