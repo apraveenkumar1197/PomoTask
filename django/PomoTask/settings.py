@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'Goal',
     'General',
+    'Dairy',
     'django_crontab'
 ]
 
