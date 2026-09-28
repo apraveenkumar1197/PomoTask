@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Calendar, Flag, LayoutDashboard, ListTodo } from 'lucide-react-native';
+import { BookOpen, Calendar, Flag, LayoutDashboard, ListTodo } from 'lucide-react-native';
 import React from 'react';
 import { Platform } from 'react-native';
 
@@ -55,6 +55,13 @@ export default function TabLayout() {
         options={{
           title: 'Goals',
           tabBarIcon: ({ color }) => <Flag size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="dairy"
+        options={{
+          title: 'Dairy',
+          tabBarIcon: ({ color }) => <BookOpen size={22} color={color} />,
         }}
       />
       <Tabs.Screen
