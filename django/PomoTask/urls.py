@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
+from Dairy.dairy_views import DairyViews
 from General.views import GeneralView
 from Goal.goal_views import GoalViews
 from Task.activity_views import ActivityViews
@@ -49,4 +50,7 @@ urlpatterns = [
     path('goal/<str:goal_id>/edit', GoalViews.edit_yearly_goal, name='update-goal'),
     path('goal/<str:goal_id>/update', GoalViews.update_goal, name='delete-goal'),
     path('goal/<str:goal_id>/delete', GoalViews.delete_goal, name='delete-goal'),
+
+    path('dairy/<str:date>', DairyViews.get_by_date, name='get-dairy-by-date'),
+    path('dairy', DairyViews.save_dairy, name='save-dairy'),
 ]
