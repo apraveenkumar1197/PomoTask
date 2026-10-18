@@ -1,0 +1,2 @@
+* * * * * root . /etc/container_environment.sh; cd /app && python manage.py remainder_notification_sender >> /var/log/pomotask_reminders.log 2>&1
+* * * * * root . /etc/container_environment.sh; cd /app && python manage.py daily_plan_notification >> /var/log/pomotask_daily_plan.log 2>&1
