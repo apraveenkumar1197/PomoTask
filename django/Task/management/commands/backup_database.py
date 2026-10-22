@@ -8,6 +8,8 @@ from decouple import config
 from dropbox.exceptions import ApiError, AuthError
 from django.core.management import BaseCommand
 
+from Task.clients.telegram_client import TelegramClient
+
 DROPBOX_FOLDER = '/DB Backups/Pomotask'
 CHUNK_SIZE = 8 * 1024 * 1024  # 8MB, matches Dropbox's chunked-upload threshold
 
@@ -24,14 +26,22 @@ class Command(BaseCommand):
             )
             return
 
+        telegram = TelegramClient()
+
         archive_path = self._dump_database()
         if archive_path is None:
+            telegram.send('Pomotask backup failed', 'mongodump failed, see the backup log.')
             return
 
         try:
-            self._upload_to_dropbox(archive_path, dbx)
+            uploaded = self._upload_to_dropbox(archive_path, dbx)
         finally:
             os.remove(archive_path)
+
+        if uploaded:
+            telegram.send('Pomotask backup done', f'Uploaded {os.path.basename(archive_path)} to Dropbox.')
+        else:
+            telegram.send('Pomotask backup failed', 'Dropbox upload failed, see the backup log.')
 
     def _get_client(self):
         """Prefer a refresh token (auto-renews indefinitely) over a bare
@@ -97,7 +107,7 @@ class Command(BaseCommand):
             dbx.users_get_current_account()
         except AuthError:
             self.stderr.write('Dropbox credentials are invalid or expired.')
-            return
+            return False
 
         file_name = os.path.basename(file_path)
         dest_path = f"{DROPBOX_FOLDER}/{file_name}"
@@ -120,6 +130,7 @@ class Command(BaseCommand):
                             cursor.offset = f.tell()
             except ApiError as e:
                 self.stderr.write(f'Dropbox upload failed: {e}')
-                return
+                return False
 
         self.stdout.write(f'Uploaded to Dropbox: {meta.path_display}')
+        return True
