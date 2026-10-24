@@ -41,6 +41,12 @@ services:
       DROPBOX_APP_KEY: ${DROPBOX_APP_KEY:-}
       DROPBOX_APP_SECRET: ${DROPBOX_APP_SECRET:-}
       DROPBOX_ACCESS_TOKEN: ${DROPBOX_ACCESS_TOKEN:-}
+      # Telegram notifications (task reminders, backup status). Optional: leave
+      # either unset to disable. Bot token from @BotFather; chat id of your chat with the bot.
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      # Timezone for the daily plan (08:00 / task start times are wall-clock values).
+      NOTIFICATION_TIMEZONE: ${NOTIFICATION_TIMEZONE:-UTC}
     depends_on:
       - mongo
     ports:

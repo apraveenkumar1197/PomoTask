@@ -29,6 +29,10 @@ RUN pip install -r requirements.txt
 COPY crontab_backup /etc/cron.d/pomotask_backup
 RUN chmod 0644 /etc/cron.d/pomotask_backup
 
+# Reminder notifications (Telegram), every minute.
+COPY crontab_reminders /etc/cron.d/pomotask_reminders
+RUN chmod 0644 /etc/cron.d/pomotask_reminders
+
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
