@@ -219,10 +219,10 @@ export default function CalendarScreen() {
                     value={viewMode}
                     onValueChange={handleViewChange}
                     buttons={[
-                        { value: 'timeGridDay', label: 'Day', checkedColor: BRAND.primary, uncheckedColor: '#b0aeae' },
-                        { value: 'timeGridWeek', label: 'Week', checkedColor: BRAND.primary, uncheckedColor: '#b0aeae' },
-                        { value: 'dayGridMonth', label: 'Month', checkedColor: BRAND.primary, uncheckedColor: '#b0aeae' },
-                        { value: 'listWeek', label: 'List', checkedColor: BRAND.primary, uncheckedColor: '#b0aeae' },
+                        { value: 'timeGridDay', label: 'Day', uncheckedColor: '#b0aeae' },
+                        { value: 'timeGridWeek', label: 'Week', uncheckedColor: '#b0aeae' },
+                        { value: 'dayGridMonth', label: 'Month', uncheckedColor: '#b0aeae' },
+                        { value: 'listWeek', label: 'List', uncheckedColor: '#b0aeae' },
                     ]}
                     theme={{
                         colors: {
