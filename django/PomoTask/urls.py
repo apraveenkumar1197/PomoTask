@@ -20,6 +20,7 @@ from django.urls import path
 from Dairy.dairy_views import DairyViews
 from General.views import GeneralView
 from Goal.goal_views import GoalViews
+from Points import views as points
 from Task.activity_views import ActivityViews
 from Task.services.task_editor import TaskEditor
 from Task.task_views import TaskViews
@@ -53,4 +54,8 @@ urlpatterns = [
 
     path('dairy/<str:date>', DairyViews.get_by_date, name='get-dairy-by-date'),
     path('dairy', DairyViews.save_dairy, name='save-dairy'),
+    path('points/items', points.items, name='points-items'),
+    path('points/items/<str:item_id>', points.update_item, name='points-update-item'),
+    path('points/items/<str:item_id>/check-in/<str:day>', points.check_in, name='points-check-in'),
+    path('points/summary', points.summary, name='points-monthly-summary'),
 ]
