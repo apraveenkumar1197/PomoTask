@@ -15,7 +15,7 @@ class TaskListFormatter:
 
 
         for task in self.task_list:
-            if self.search_term is not None and self.search_term is not "":
+            if self.search_term:
                 if self.search_term not in task.title:
                     continue
 
@@ -29,6 +29,8 @@ class TaskListFormatter:
                 'estimate_text': TaskEstimateFormatter(task.estimate).format(),
                 'tags': TagListFormatter(task.tags).format(),
                 'status_bool': str(task.status) in [Status.Done.value],
+                'status': str(task.status),
+                'record_type': task.record_type,
                 'is_deleted': str(task.status) == Status.Deleted.value,
             }
             task_list.append(task_data)
