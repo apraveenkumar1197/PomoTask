@@ -16,8 +16,9 @@ export default class Task {
         });
     }
 
-    static calendarTaskList() {
-        return Base.get(`calendar/task`);
+    static calendarTaskList(start, end) {
+        const range = start && end ? `?start=${start}&end=${end}` : '';
+        return Base.get(`calendar/task${range}`);
     }
 
     static initData() {
@@ -26,8 +27,8 @@ export default class Task {
 
     /**
      * @param {string} taskTitle
-     * @param {string | null} taskAddToMyDay
-     * @param {string | null} taskImportant
+     * @param {boolean | string | null} taskAddToMyDay
+     * @param {boolean | string | null} taskImportant
      * @param {string | null} taskDueDate
      * @param {string | null} taskFromTime
      * @param {string | null} taskToTime
@@ -76,8 +77,8 @@ export default class Task {
      * @param {string} taskId
      * @param {string | null} taskTitle
      * @param {string | null} taskStatus
-     * @param {string | null} taskAddToMyDay
-     * @param {string | null} taskImportant
+     * @param {boolean | string | null} taskAddToMyDay
+     * @param {boolean | string | null} taskImportant
      * @param {string | null} taskDueDate
      * @param {string | null} taskFromTime
      * @param {string | null} taskToTime
@@ -125,8 +126,8 @@ export default class Task {
      * @param {string | null} taskId
      * @param {string | null} taskTitle
      * @param {string | null} taskStatus
-     * @param {string | null} taskAddToMyDay
-     * @param {string | null} taskImportant
+     * @param {boolean | string | null} taskAddToMyDay
+     * @param {boolean | string | null} taskImportant
      * @param {string | null} taskDueDate
      * @param {string | null} taskFromTime
      * @param {string | null} taskToTime
