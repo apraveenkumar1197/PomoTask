@@ -22,16 +22,16 @@ class TaskQuerySet(models.query.QuerySet):
 
     def not_done(self):
         return (self.exclude(status__in=[Status.Done, Status.Deleted, Status.Cancelled])
-                    .exclude(record_type='activity')
+                    .exclude(record_type__in=[Task.RECORD_TYPE_ACTIVITY, Task.RECORD_TYPE_HIDDEN_POINT])
                     .order_by('due_date', 'from_time'))
 
     def not_live(self):
         return (self.filter(status__in=[Status.Done, Status.Deleted, Status.Cancelled])
-                    .exclude(record_type='activity')
+                    .exclude(record_type__in=[Task.RECORD_TYPE_ACTIVITY, Task.RECORD_TYPE_HIDDEN_POINT])
                     .order_by('updated_at', 'due_date').reverse())
 
     def done(self):
-        return self.filter(status__in=[Status.Done])
+        return self.filter(status__in=[Status.Done]).exclude(record_type=Task.RECORD_TYPE_HIDDEN_POINT)
 
     def important(self):
         return self.not_done().filter(important_flag__in=[True])
@@ -67,6 +67,9 @@ def generate_object_id():
 class Task(models.Model):
     RECORD_TYPE_TASK = 'task'
     RECORD_TYPE_ACTIVITY = 'activity'
+    RECORD_TYPE_POINT = 'point_task'
+    RECORD_TYPE_HIDDEN_POINT = 'point_hidden'
+    POINT_RECORD_TYPES = (RECORD_TYPE_POINT, RECORD_TYPE_HIDDEN_POINT)
 
     objects = TaskQuerySet.as_manager()
 
