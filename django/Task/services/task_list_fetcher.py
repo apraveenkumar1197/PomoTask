@@ -1,6 +1,9 @@
+from django.db.models import Q
+
+from Points.schedule import today
+from Points.service import points_for_today
 from Task.formatters.task_list_formatter import TaskListFormatter
 from Task.models import Task
-
 from Task.models.tags import Tags
 from Task.services.service_response import ServiceResponse
 
@@ -12,10 +15,15 @@ class TaskListFetcher:
         self.search_term = search_term
 
     def fetch(self):
+        day = today()
+        point_tasks = points_for_today(day)
+        regular_tasks = ~Q(record_type=Task.RECORD_TYPE_POINT)
         if self.filter == 'important':
             tasks = Task.objects.important()
         elif self.filter == 'my_day':
-            tasks = Task.objects.my_day()
+            tasks = Task.objects.not_done().filter(
+                (regular_tasks & (Q(due_date=day) | Q(my_day_date=day))) | point_tasks
+            )
         elif self.filter == 'planned':
             tasks = Task.objects.planned()
         elif self.filter == 'task-history':
@@ -41,6 +49,10 @@ class TaskListFetcher:
         if self.tag_names:
             tasks = self.tag_filtered_ids(tasks)
 
+        if self.filter not in ('my_day', 'planned', 'task-history'):
+            tasks = tasks.filter(regular_tasks | point_tasks)
+        if self.filter == 'planned':
+            tasks = tasks.filter(regular_tasks | Q(due_date__gte=day))
         tasks = list(tasks)
         view_key = None if self.filter == 'task-history' else (self.filter or 'default')
         if view_key:
@@ -67,7 +79,7 @@ class TaskListFetcher:
         task_filtered_ids = []
         tags_ids = Tags.objects.filter(name__in=tag_names).values_list('id', flat=True)
         for task in tasks:
-            if set(tags_ids).issubset(set(task.tags)):
+            if set(tags_ids).issubset(set(task.tags or [])):
                 task_filtered_ids.append(task.id)
 
         return Task.objects.filter(id__in=task_filtered_ids)

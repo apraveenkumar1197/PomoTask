@@ -3,6 +3,7 @@ import json
 from django.views import View
 from django.views.decorators.http import require_http_methods
 
+from Points.schedule import parse_date
 from Task.services.calendar_task_fetcher import CalendarTaskFetcher
 from Task.services.task_create_init_data_fetcher import TaskCreateInitDataFetcher
 from Task.services.task_creator import TaskCreator
@@ -13,6 +14,7 @@ from Task.services.task_timer_status_fetcher import TaskTimerStatusFetcher
 from Task.services.task_timer_status_updater import TaskTimerStatusUpdater
 from Task.services.task_timing_history_fetcher import TaskTimingHistoryFetcher
 from Task.services.task_updater import TaskUpdater
+from Task.services.service_response import ServiceResponse
 from common.http_utils import api_response
 
 
@@ -62,7 +64,14 @@ class TaskViews(View):
 
     @require_http_methods(["GET"])
     def calendar_task_list(request):
-        return api_response(CalendarTaskFetcher().list())
+        try:
+            start = parse_date(request.GET['start']) if 'start' in request.GET else None
+            end = parse_date(request.GET['end']) if 'end' in request.GET else None
+            if (start is None) != (end is None) or (start and end and not 0 <= (end - start).days <= 62):
+                raise ValueError('Choose a calendar range of up to 63 days.')
+        except ValueError as error:
+            return api_response(ServiceResponse(str(error), 400))
+        return api_response(CalendarTaskFetcher(start, end).list())
 
     @require_http_methods(["GET"])
     def list_tags(request):

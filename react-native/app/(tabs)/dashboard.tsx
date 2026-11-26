@@ -11,6 +11,7 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
+import PointsMonthlySummary from '@/components/PointsMonthlySummary';
 import { BRAND, NEUTRAL, RADIUS, SHADOWS, SURFACE } from '@/constants/theme';
 import DateUtil from '@/src/functionalities/DateUtil';
 import General from '@/src/repo/General';
@@ -129,6 +130,8 @@ export default function DashboardScreen() {
                         {renderChart("Today's Progress", todoVsDoneData)}
                     </View>
                 </View>
+
+                <PointsMonthlySummary />
 
                 <Card style={styles.card} elevation={0}>
                     <Card.Title title="Monthly Goals" titleStyle={styles.cardTitle} />

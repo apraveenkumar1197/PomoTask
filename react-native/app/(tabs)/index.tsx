@@ -199,6 +199,9 @@ export default function TasksScreen() {
                                     </View>
                                 )}
                                 <View style={styles.tagsWrapper}>
+                                    {item.record_type === 'point_task' && (
+                                        <View style={styles.tagChip}><Text style={styles.tagChipText}>From Points</Text></View>
+                                    )}
                                     {item.planned_date && (
                                         <View style={styles.tagChip}>
                                             <Text style={styles.tagChipText}>{item.planned_date}</Text>

@@ -21,6 +21,7 @@ class TaskEditor:
 
         task_data = {
             'id': task.id,
+            'record_type': task.record_type,
             'title': task.title,
             'is_important_flag': task.important_flag,
             'is_my_day': task.is_my_day,

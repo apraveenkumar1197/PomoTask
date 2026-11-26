@@ -1,8 +1,9 @@
 import { Calendar, Clock, Lightbulb, Star, Trash2 } from 'lucide-react-native';
+import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Button, Chip, IconButton, Menu, Modal, Portal, Text, TextInput } from 'react-native-paper';
+import { ActivityIndicator, Button, Chip, HelperText, IconButton, Menu, Modal, Portal, Text, TextInput } from 'react-native-paper';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { BRAND, NEUTRAL, RADIUS, SHADOWS, SURFACE } from '@/constants/theme';
 import Task from '../src/repo/Task';
@@ -33,6 +34,8 @@ export default function TaskEditModal({ visible, taskId, onDismiss, onTaskUpdate
     const [allGoals, setAllGoals] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(false);
+    const [linkedPoint, setLinkedPoint] = useState(false);
+    const [saveError, setSaveError] = useState('');
     const [status, setStatus] = useState('0');
     const [statuses, setStatuses] = useState<{ value: string; label: string }[]>([]);
     const [statusReason, setStatusReason] = useState('');
@@ -72,6 +75,7 @@ export default function TaskEditModal({ visible, taskId, onDismiss, onTaskUpdate
 
     const fetchTaskData = async () => {
         setFetching(true);
+        setSaveError('');
         try {
             // @ts-ignore
             const res = await Task.edit(taskId!);
@@ -80,15 +84,17 @@ export default function TaskEditModal({ visible, taskId, onDismiss, onTaskUpdate
             setTitle(task.title || '');
             setImportant(task.is_important_flag);
             setMyDay(task.add_to_my_day === '1');
-            setDueDate(task.planned_date && task.planned_date !== "null" ? new Date(task.planned_date) : null);
+            setDueDate(task.planned_date && task.planned_date !== "null" ? new Date(`${task.planned_date}T00:00:00`) : null);
             setFromTime(task.from_time ? new Date(`1970-01-01T${task.from_time}`) : null);
             setToTime(task.to_time ? new Date(`1970-01-01T${task.to_time}`) : null);
             setReminder(task.reminder_date_time ? new Date(task.reminder_date_time) : null);
             setNotes(task.notes || '');
             setTags(task.tags ? task.tags.map((t: any) => typeof t === 'string' ? t : t.name) : []);
             setGoal(task.goal);
-            setStatus(task.status);
-            setStatuses(statuses || []);
+            setStatus(String(task.status));
+            const linked = task.record_type === 'point_task';
+            setLinkedPoint(linked);
+            setStatuses((statuses || []).filter((option: { value: string }) => !linked || option.value !== '3'));
             setStatusReason(task.cancellation_reason || '');
 
             console.log(`Due date ::: ${dueDate}`)
@@ -110,6 +116,7 @@ export default function TaskEditModal({ visible, taskId, onDismiss, onTaskUpdate
     const handleUpdate = async () => {
         if (!title.trim() || !taskId) return;
         setLoading(true);
+        setSaveError('');
         try {
 
             await Task.update(
@@ -118,7 +125,7 @@ export default function TaskEditModal({ visible, taskId, onDismiss, onTaskUpdate
                 status,
                 myDay,
                 important,
-                dueDate?.toISOString().split('T')[0],
+                dueDate ? dayjs(dueDate).format('YYYY-MM-DD') : undefined,
                 fromTime?.toTimeString().split(' ')[0],
                 toTime?.toTimeString().split(' ')[0],
                 reminder?.toISOString(),
@@ -141,8 +148,8 @@ export default function TaskEditModal({ visible, taskId, onDismiss, onTaskUpdate
 
             onTaskUpdated();
             onDismiss();
-        } catch (err) {
-            console.error("Failed to update task", err);
+        } catch (err: any) {
+            setSaveError(err?.response?.data?.msg || 'Could not update the task.');
         } finally {
             setLoading(false);
         }
@@ -189,7 +196,7 @@ export default function TaskEditModal({ visible, taskId, onDismiss, onTaskUpdate
                             <View style={styles.header}>
                                 <Text style={styles.headerTitle}>Edit Task</Text>
                                 <View style={styles.headerActions}>
-                                    <IconButton icon={() => <Trash2 size={20} color="#EA4335" />} onPress={handleDelete} />
+                                    {!linkedPoint && <IconButton icon={() => <Trash2 size={20} color="#EA4335" />} onPress={handleDelete} />}
                                     <IconButton icon="close" onPress={onDismiss} />
                                 </View>
                             </View>
@@ -384,6 +391,7 @@ export default function TaskEditModal({ visible, taskId, onDismiss, onTaskUpdate
                                 </View>
                             </ScrollView>
 
+                            {!!saveError && <HelperText type="error" visible>{saveError}</HelperText>}
                             <View style={styles.footer}>
                                 <Button mode="outlined" onPress={onDismiss} style={styles.footerBtn}>Cancel</Button>
                                 <Button

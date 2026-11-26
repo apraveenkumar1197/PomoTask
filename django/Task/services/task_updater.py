@@ -20,6 +20,16 @@ class TaskUpdater:
     def update(self):
         try:
             task = Task.objects.filter(id=self.task_id)
+            current = task.first()
+            if current is None:
+                return ServiceResponse('Task not found.', 404)
+            if current.record_type in Task.POINT_RECORD_TYPES:
+                from Points.service import validate_task_plan
+
+                try:
+                    validate_task_plan(current, self.task_data)
+                except ValueError as error:
+                    return ServiceResponse(str(error), 400)
 
             self.task_update_formatter = TaskUpdateFormatter(self.task_data)
             db_task_data = self.task_update_formatter.format()
@@ -28,7 +38,7 @@ class TaskUpdater:
 
             task.update(**db_task_data.data())
             self._check_timer_status()
-            return ServiceResponse('Task updated').data({'task_id': task.first().id})
+            return ServiceResponse('Task updated').data({'task_id': current.id})
         except Exception as e:
             return ServiceResponse('Error in updating Task', HTTP_ERROR).ex(e)
 
