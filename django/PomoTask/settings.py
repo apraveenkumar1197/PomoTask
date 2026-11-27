@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'Goal',
     'General',
     'Dairy',
+    'Points',
     'django_crontab'
 ]
 
