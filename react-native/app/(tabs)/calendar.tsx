@@ -3,6 +3,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
+import { useFocusEffect } from 'expo-router';
 import { Clock } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -26,8 +27,8 @@ export default function CalendarScreen() {
     const [viewMode, setViewMode] = useState('timeGridWeek');
     const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
     const calendarRef = useRef<FullCalendar>(null);
-    const isFetching = useRef(false);
-    const isMounted = useRef(false);
+    const requestId = useRef(0);
+    const visibleRange = useRef<{ start: string; end: string } | undefined>(undefined);
 
     const [addModalVisible, setAddModalVisible] = useState(false);
     const [activityModalVisible, setActivityModalVisible] = useState(false);
@@ -49,13 +50,12 @@ export default function CalendarScreen() {
         };
     }, []);
 
-    const fetchCalendarTasks = async () => {
-        if (isFetching.current) return;
-        isFetching.current = true;
+    const fetchCalendarTasks = useCallback(async () => {
+        const request = ++requestId.current;
         setLoading(true);
         try {
-            console.log("Fetching calendar tasks...");
-            const res = await Task.calendarTaskList();
+            const range = visibleRange.current;
+            const res = await Task.calendarTaskList(range?.start, range?.end);
 
             let tasks = [];
             if (res?.data?.data?.tasks) {
@@ -66,9 +66,7 @@ export default function CalendarScreen() {
                 tasks = res.data;
             }
 
-            console.log(`Found ${tasks.length} tasks in response`);
-
-            const mappedEvents = tasks.map((task: any) => {
+            const mappedEvents = tasks.flatMap((task: any) => {
                 const start = task.start || task.from_time || task.taskFromTime;
                 const end = task.end || task.to_time || task.taskToTime;
                 const title = task.title || task.taskTitle || "Untitled";
@@ -76,34 +74,31 @@ export default function CalendarScreen() {
 
                 const isActivity = task.record_type === 'activity';
                 const eventColor = isActivity ? ACTIVITY_COLOR : (task.color || BRAND.primary);
-                return {
+                if (!start || !dayjs(start).isValid()) return [];
+                return [{
                     id,
                     title,
                     start: dayjs(start).toISOString(),
-                    end: dayjs(end).toISOString(),
+                    end: end && dayjs(end).isValid() ? dayjs(end).toISOString() : undefined,
                     backgroundColor: eventColor,
                     borderColor: eventColor,
                     textColor: '#ffffff',
                     extendedProps: { ...task }
-                };
-            }).filter((e: any) => e.start && e.start !== 'Invalid Date');
+                }];
+            });
 
-            console.log(`Mapped ${mappedEvents.length} events for FullCalendar`);
-            setEvents(mappedEvents);
+            if (request === requestId.current) setEvents(mappedEvents);
         } catch (err) {
             console.error("Failed to fetch calendar tasks", err);
         } finally {
-            setLoading(false);
-            isFetching.current = false;
-        }
-    };
-
-    useEffect(() => {
-        if (!isMounted.current) {
-            isMounted.current = true;
-            fetchCalendarTasks();
+            if (request === requestId.current) setLoading(false);
         }
     }, []);
+
+    useFocusEffect(useCallback(() => {
+        fetchCalendarTasks();
+        return () => { requestId.current++; };
+    }, [fetchCalendarTasks]));
 
     const onEventDrop = useCallback(async (info: any) => {
         const { event } = info;
@@ -141,9 +136,10 @@ export default function CalendarScreen() {
             );
         } catch (err) {
             console.error("Failed to update task", err);
+            info.revert();
             fetchCalendarTasks();
         }
-    }, []);
+    }, [fetchCalendarTasks]);
 
     const goToToday = () => {
         const calendarApi = calendarRef.current?.getApi();
@@ -279,7 +275,6 @@ export default function CalendarScreen() {
                     handleWindowResize={true}
                     slotDuration="00:30:00"
                     snapDuration="00:15:00"
-                    eventSnapDuration="00:15:00"
                     allDaySlot={false}
                     eventChange={onEventDrop}
                     eventDidMount={(info) => {
@@ -287,7 +282,7 @@ export default function CalendarScreen() {
                         if (isActivity) {
                             info.el.style.background = ACTIVITY_COLOR;
                             info.el.style.boxShadow = `0 2px 6px ${ACTIVITY_COLOR}80`;
-                        } else {
+                        } else if (!info.event.extendedProps?.achieved) {
                             info.el.style.background = 'linear-gradient(135deg, #6264A7, #464775)';
                             info.el.style.boxShadow = '0 2px 6px rgba(98,100,167,0.30)';
                         }
@@ -297,10 +292,18 @@ export default function CalendarScreen() {
                     selectLongPressDelay={50}
                     datesSet={(arg) => {
                         setSelectedDate(dayjs(arg.view.currentStart).format('YYYY-MM-DD'));
+                        const start = dayjs(arg.start).format('YYYY-MM-DD');
+                        const end = dayjs(arg.end).subtract(1, 'day').format('YYYY-MM-DD');
+                        if (visibleRange.current?.start !== start || visibleRange.current?.end !== end) {
+                            visibleRange.current = { start, end };
+                            fetchCalendarTasks();
+                        }
                     }}
                     eventContent={(eventInfo) => (
                         <View style={styles.eventContent}>
-                            <Text style={styles.eventTitle} numberOfLines={1}>{eventInfo.event.title}</Text>
+                            <Text style={styles.eventTitle} numberOfLines={1}>
+                                {eventInfo.event.extendedProps.achieved ? '✓ ' : ''}{eventInfo.event.title}
+                            </Text>
                             <View style={styles.eventTimeRow}>
                                 <Clock size={10} color="white" />
                                 <Text style={styles.eventTime}>

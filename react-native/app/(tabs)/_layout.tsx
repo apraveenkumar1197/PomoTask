@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { BookOpen, Calendar, Flag, LayoutDashboard, ListTodo } from 'lucide-react-native';
+import { BookOpen, Calendar, CircleCheck, Flag, LayoutDashboard, ListTodo } from 'lucide-react-native';
 import React from 'react';
 import { Platform } from 'react-native';
 
@@ -51,6 +51,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="calendar"
+        options={{
+          title: 'Calendar',
+          tabBarIcon: ({ color }) => <Calendar size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="points"
+        options={{
+          title: 'Points',
+          tabBarIcon: ({ color }) => <CircleCheck size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="goals"
         options={{
           title: 'Goals',
@@ -62,13 +76,6 @@ export default function TabLayout() {
         options={{
           title: 'Dairy',
           tabBarIcon: ({ color }) => <BookOpen size={22} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="calendar"
-        options={{
-          title: 'Calendar',
-          tabBarIcon: ({ color }) => <Calendar size={22} color={color} />,
         }}
       />
     </Tabs>

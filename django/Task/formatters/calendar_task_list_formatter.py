@@ -1,5 +1,6 @@
 from datetime import datetime, time
 
+from Task.enums.status import Status
 from Task.models import Task
 from Task.services.utils.time_slot_generator import TimeSlotGenerator
 
@@ -42,13 +43,15 @@ class CalendarTaskListFormatter:
                     start_time = datetime.combine(task.due_date, time(hour=9, minute=0)).strftime("%Y-%m-%d %H:%M:%S")
                     end_time = datetime.combine(task.due_date, time(hour=10, minute=0)).strftime("%Y-%m-%d %H:%M:%S")
 
+            achieved = record_type == Task.RECORD_TYPE_POINT and str(task.status) == Status.Done
             task_data = {
                 'event_id': task.id,
                 'title': task.title,
                 'start': start_time,
                 'end': end_time,
                 'record_type': record_type,
-                'color': CALENDAR_COLORS.get(record_type, '#6264A7'),
+                'color': '#397451' if achieved else CALENDAR_COLORS.get(record_type, '#6264A7'),
+                'achieved': achieved,
                 'draggable?': True,
                 'editable?': True,
                 'deletable?': True,
